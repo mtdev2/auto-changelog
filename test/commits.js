@@ -26,7 +26,7 @@ describe('fetchCommits', () => {
   it('fetches commits', async () => {
     const gitLog = await readFile(join(__dirname, 'data', 'git-log.txt'))
     mock('cmd', () => gitLog)
-    expect(await fetchCommits(remotes.github, options)).to.deep.equal(commits)
+    expect(await fetchCommits('', remotes.github, options)).to.deep.equal(commits)
     unmock('cmd')
   })
 })
@@ -48,33 +48,11 @@ describe('parseCommits', () => {
     expect(commits[0].href).to.equal('https://bitbucket.org/user/repo/commits/2401ee4706e94629f48830bab9ed5812c032734a')
   })
 
-  it('supports startingCommit option', async () => {
-    const gitLog = await readFile(join(__dirname, 'data', 'git-log.txt'))
-    const options = { startingCommit: '17fbef87e82889f01d8257900f7edc55b05918a2' }
-    expect(parseCommits(gitLog, remotes.github, options)).to.have.length(10)
-  })
-
   it('supports breakingPattern option', async () => {
     const gitLog = await readFile(join(__dirname, 'data', 'git-log.txt'))
     const options = { breakingPattern: 'Some breaking change' }
     const result = parseCommits(gitLog, remotes.github, options)
     expect(result.filter(c => c.breaking)).to.have.length(1)
-  })
-
-  it('supports tagPattern option', async () => {
-    const gitLog = await readFile(join(__dirname, 'data', 'git-log.txt'))
-    const options = { tagPattern: 'non-semver', tagPrefix: '' }
-    const result = parseCommits(gitLog, remotes.github, options)
-    expect(result.filter(c => c.tag)).to.have.length(1)
-    expect(result.filter(c => c.tag === 'non-semver-tag')).to.have.length(1)
-  })
-
-  it('supports wildcard tagPattern', async () => {
-    const gitLog = await readFile(join(__dirname, 'data', 'git-log.txt'))
-    const options = { tagPattern: '.+', tagPrefix: '' }
-    const result = parseCommits(gitLog, remotes.github, options)
-    expect(result.filter(c => c.tag)).to.have.length(5)
-    expect(result.filter(c => c.tag === 'non-semver-tag')).to.have.length(1)
   })
 
   it('supports replaceText option', async () => {
@@ -86,14 +64,6 @@ describe('parseCommits', () => {
     }
     const result = parseCommits(gitLog, remotes.github, options)
     expect(result.filter(c => c.subject === 'Some **BREAKING** change')).to.have.length(1)
-  })
-
-  it('invalid startingCommit throws an error', done => {
-    const options = { startingCommit: 'not-a-hash' }
-    readFile(join(__dirname, 'data', 'git-log.txt'))
-      .then(gitLog => parseCommits(gitLog, remotes.github, options))
-      .then(() => done('Should throw an error'))
-      .catch(() => done())
   })
 })
 

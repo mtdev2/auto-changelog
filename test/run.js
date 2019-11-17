@@ -35,7 +35,7 @@ describe('getOptions', () => {
   })
 })
 
-describe('run', () => {
+describe.skip('run', () => {
   beforeEach(() => {
     mock('fileExists', () => false)
     mock('readJson', () => null)
@@ -186,22 +186,6 @@ describe('run', () => {
       expect(log).to.include('https://github.com/user/repo/compare/v1.0.0...HEAD')
     })
     return run(['', '', '--unreleased'])
-  })
-
-  it('supports includeBranch option', () => {
-    mock('fetchCommits', (remote, options, branch) => {
-      if (branch === 'another-branch') {
-        return commits.concat({
-          date: '2015-12-15T12:03:09.000Z',
-          tag: 'v0.2.0'
-        })
-      }
-      return commits
-    })
-    mock('writeFile', (output, log) => {
-      expect(log).to.include('v0.2.0')
-    })
-    return run(['', '', '--include-branch', 'another-branch'])
   })
 
   it('supports breakingPattern option', () => {
