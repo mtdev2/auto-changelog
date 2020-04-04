@@ -44,7 +44,7 @@
   "dependencies": {
     "commander": "^5.0.0",
     "core-js": "^3.6.4",
-    "handlebars": "^4.7.4",
+    "handlebars": "^4.7.6",
     "lodash.uniqby": "^4.7.0",
     "node-fetch": "^2.6.0",
     "parse-github-url": "^1.0.2",
