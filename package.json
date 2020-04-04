@@ -65,7 +65,7 @@
     "cross-env": "^7.0.2",
     "markdownlint-cli": "^0.22.0",
     "mocha": "^7.1.1",
-    "nyc": "^15.0.0",
+    "nyc": "^15.0.1",
     "rimraf": "^3.0.2",
     "snazzy": "^8.0.0",
     "standard": "^14.3.3"
