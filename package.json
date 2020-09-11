@@ -46,7 +46,7 @@
     "core-js": "^3.6.5",
     "handlebars": "^4.7.6",
     "lodash.uniqby": "^4.7.0",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "parse-github-url": "^1.0.2",
     "regenerator-runtime": "^0.13.5",
     "semver": "^7.3.2"
