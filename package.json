@@ -43,7 +43,7 @@
   "license": "MIT",
   "dependencies": {
     "commander": "^5.1.0",
-    "core-js": "^3.6.5",
+    "core-js": "^3.11.2",
     "handlebars": "^4.7.6",
     "lodash.uniqby": "^4.7.0",
     "node-fetch": "^2.6.0",
