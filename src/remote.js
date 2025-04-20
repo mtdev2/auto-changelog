@@ -63,7 +63,7 @@ const getRemote = (remoteURL, options = {}) => {
       getCommitLink: id => `${url}/commit/${id}`,
       getIssueLink: id => `${project}/_workitems/edit/${id}`,
       getMergeLink: id => `${url}/pullrequest/${id}`,
-      getCompareLink: (from, to) => `${url}/branches?baseVersion=GT${to}&targetVersion=GT${from}&_a=commits`,
+      getCompareLink: (from, to) => `${url}/branches?baseVersion=GT${from}&targetVersion=GT${to}&_a=commits`,
       ...overrides
     }
   }

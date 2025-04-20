@@ -86,7 +86,7 @@ const TEST_DATA = [
       commit: 'https://dev.azure.com/user/project/_git/repo/commit/123',
       issue: 'https://dev.azure.com/user/project/_workitems/edit/123',
       merge: 'https://dev.azure.com/user/project/_git/repo/pullrequest/123',
-      compare: 'https://dev.azure.com/user/project/_git/repo/branches?baseVersion=GTv2.0.0&targetVersion=GTv1.2.3&_a=commits'
+      compare: 'https://dev.azure.com/user/project/_git/repo/branches?baseVersion=GTv1.2.3&targetVersion=GTv2.0.0&_a=commits'
     }
   },
   {
@@ -97,7 +97,7 @@ const TEST_DATA = [
       commit: 'https://user.visualstudio.com/project/_git/repo/commit/123',
       issue: 'https://user.visualstudio.com/project/_workitems/edit/123',
       merge: 'https://user.visualstudio.com/project/_git/repo/pullrequest/123',
-      compare: 'https://user.visualstudio.com/project/_git/repo/branches?baseVersion=GTv2.0.0&targetVersion=GTv1.2.3&_a=commits'
+      compare: 'https://user.visualstudio.com/project/_git/repo/branches?baseVersion=GTv1.2.3&targetVersion=GTv2.0.0&_a=commits'
     }
   }
 ]
