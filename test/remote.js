@@ -105,7 +105,8 @@ const TEST_DATA = [
 for (const { remotes, expected } of TEST_DATA) {
   for (const remote of remotes) {
     test(`fetchRemote: parses ${remote}`, async t => {
-      mock('cmd', () => remote)
+      // `git config --get` emits a trailing newline; mirror that here.
+      mock('cmd', () => `${remote}\n`)
       const result = await fetchRemote({})
       t.equal(result.getCommitLink('123'), expected.commit)
       t.equal(result.getIssueLink('123'), expected.issue)

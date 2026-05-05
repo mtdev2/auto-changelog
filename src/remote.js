@@ -3,7 +3,7 @@ const { cmd } = require('./utils')
 
 const fetchRemote = async options => {
   const remoteURL = await cmd(`git config --get remote.${options.remote}.url`)
-  return getRemote(remoteURL, options)
+  return getRemote(remoteURL.trim(), options)
 }
 
 const getRemote = (remoteURL, options = {}) => {
