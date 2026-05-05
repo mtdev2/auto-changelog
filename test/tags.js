@@ -1,5 +1,4 @@
-const { describe, it, beforeEach, afterEach } = require('mocha')
-const { expect } = require('chai')
+const test = require('tape')
 const remotes = require('./data/remotes')
 const {
   fetchTags,
@@ -12,24 +11,23 @@ const options = {
   ...remotes.github
 }
 
-describe('fetchTags', () => {
-  beforeEach(() => {
-    mock('cmd', () => Promise.resolve([
-      'v0.1.0---2000-02-01',
-      'v0.2.0---2000-03-01',
-      'v0.2.1---2000-03-02',
-      'v0.2.2---2000-03-03',
-      'v0.3.0---2000-04-01',
-      'v1.0.0---2001-01-01'
-    ].join('\n')))
-  })
+const DEFAULT_TAGS = [
+  'v0.1.0---2000-02-01',
+  'v0.2.0---2000-03-01',
+  'v0.2.1---2000-03-02',
+  'v0.2.2---2000-03-03',
+  'v0.3.0---2000-04-01',
+  'v1.0.0---2001-01-01'
+].join('\n')
 
-  afterEach(() => {
-    unmock('cmd')
-  })
+function setupDefault () {
+  mock('cmd', () => Promise.resolve(DEFAULT_TAGS))
+}
 
-  it('fetches tags', async () => {
-    expect(await fetchTags(options)).to.deep.equal([{
+test('fetchTags: fetches tags', async t => {
+  setupDefault()
+  try {
+    t.deepEqual(await fetchTags(options), [{
       tag: 'v1.0.0',
       version: 'v1.0.0',
       title: 'v1.0.0',
@@ -101,40 +99,64 @@ describe('fetchTags', () => {
       major: false,
       minor: false
     }])
-  })
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('supports --starting-version', async () => {
-    expect(await fetchTags({ ...options, startingVersion: 'v0.3' })).to.have.lengthOf(2)
-    expect(await fetchTags({ ...options, startingVersion: 'v1' })).to.have.lengthOf(1) // Inferred semver
-    expect(await fetchTags({ ...options, startingVersion: 'v0.2.8' })).to.have.lengthOf(2) // Non-existent tag from the past
-    expect(await fetchTags({ ...options, startingVersion: 'v2.0.0' })).to.have.lengthOf(0) // Non-existent tag from the future
-  })
+test('fetchTags: supports --starting-version', async t => {
+  setupDefault()
+  try {
+    t.equal((await fetchTags({ ...options, startingVersion: 'v0.3' })).length, 2)
+    t.equal((await fetchTags({ ...options, startingVersion: 'v1' })).length, 1) // Inferred semver
+    t.equal((await fetchTags({ ...options, startingVersion: 'v0.2.8' })).length, 2) // Non-existent tag from the past
+    t.equal((await fetchTags({ ...options, startingVersion: 'v2.0.0' })).length, 0) // Non-existent tag from the future
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('supports --ending-version', async () => {
-    expect(await fetchTags({ ...options, endingVersion: 'v0.2.2' })).to.have.lengthOf(4)
-  })
+test('fetchTags: supports --ending-version', async t => {
+  setupDefault()
+  try {
+    t.equal((await fetchTags({ ...options, endingVersion: 'v0.2.2' })).length, 4)
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('supports --starting-version and --ending-version', async () => {
-    expect(await fetchTags({ ...options, startingVersion: 'v0.2.1', endingVersion: 'v0.2.2' })).to.have.lengthOf(2)
-  })
+test('fetchTags: supports --starting-version and --ending-version', async t => {
+  setupDefault()
+  try {
+    t.equal((await fetchTags({ ...options, startingVersion: 'v0.2.1', endingVersion: 'v0.2.2' })).length, 2)
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('supports --starting-date', async () => {
-    expect(await fetchTags({ ...options, startingDate: '2000-03-01' })).to.have.lengthOf(5)
-    expect(await fetchTags({ ...options, startingDate: '2000-03-02' })).to.have.lengthOf(4)
-    expect(await fetchTags({ ...options, startingDate: '2000-05-01' })).to.have.lengthOf(1)
-  })
+test('fetchTags: supports --starting-date', async t => {
+  setupDefault()
+  try {
+    t.equal((await fetchTags({ ...options, startingDate: '2000-03-01' })).length, 5)
+    t.equal((await fetchTags({ ...options, startingDate: '2000-03-02' })).length, 4)
+    t.equal((await fetchTags({ ...options, startingDate: '2000-05-01' })).length, 1)
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('sorts tags using semver', async () => {
-    mock('cmd', () => Promise.resolve([
-      '0.1.0---2000-02-01',
-      '0.2.0---2000-03-01',
-      '0.3.0---2000-04-01',
-      '0.2.1---2000-03-02',
-      '0.2.2---2000-03-03',
-      '1.0.0---2001-01-01'
-    ].join('\n')))
+test('fetchTags: sorts tags using semver', async t => {
+  mock('cmd', () => Promise.resolve([
+    '0.1.0---2000-02-01',
+    '0.2.0---2000-03-01',
+    '0.3.0---2000-04-01',
+    '0.2.1---2000-03-02',
+    '0.2.2---2000-03-03',
+    '1.0.0---2001-01-01'
+  ].join('\n')))
+  try {
     const tags = await fetchTags(options)
-    expect(tags.map(t => t.title)).to.deep.equal([
+    t.deepEqual(tags.map(t => t.title), [
       '1.0.0',
       '0.3.0',
       '0.2.2',
@@ -142,19 +164,23 @@ describe('fetchTags', () => {
       '0.2.0',
       '0.1.0'
     ])
-  })
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('does not sort when sorting via --append-git-tag', async () => {
-    mock('cmd', () => Promise.resolve([
-      '0.1.0---2000-02-01',
-      '0.2.0---2000-03-01',
-      '0.3.0---2000-04-01',
-      '0.2.1---2000-03-02',
-      '0.2.2---2000-03-03',
-      '1.0.0---2001-01-01'
-    ].join('\n')))
+test('fetchTags: does not sort when sorting via --append-git-tag', async t => {
+  mock('cmd', () => Promise.resolve([
+    '0.1.0---2000-02-01',
+    '0.2.0---2000-03-01',
+    '0.3.0---2000-04-01',
+    '0.2.1---2000-03-02',
+    '0.2.2---2000-03-03',
+    '1.0.0---2001-01-01'
+  ].join('\n')))
+  try {
     const tags = await fetchTags({ ...options, appendGitTag: '--sort=v:refname' })
-    expect(tags.map(t => t.title)).to.deep.equal([
+    t.deepEqual(tags.map(t => t.title), [
       '0.1.0',
       '0.2.0',
       '0.3.0',
@@ -162,19 +188,23 @@ describe('fetchTags', () => {
       '0.2.2',
       '1.0.0'
     ])
-  })
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('supports partial semver tags', async () => {
-    mock('cmd', () => Promise.resolve([
-      'v0.1---2000-02-01',
-      'v0.2---2000-03-01',
-      'v0.2.1---2000-03-02',
-      'v0.2.2---2000-03-03',
-      'v0.3---2000-04-01',
-      'v1---2001-01-01'
-    ].join('\n')))
+test('fetchTags: supports partial semver tags', async t => {
+  mock('cmd', () => Promise.resolve([
+    'v0.1---2000-02-01',
+    'v0.2---2000-03-01',
+    'v0.2.1---2000-03-02',
+    'v0.2.2---2000-03-03',
+    'v0.3---2000-04-01',
+    'v1---2001-01-01'
+  ].join('\n')))
+  try {
     const tags = await fetchTags(options)
-    expect(tags.map(t => t.version)).to.deep.equal([
+    t.deepEqual(tags.map(t => t.version), [
       'v1.0.0',
       'v0.3.0',
       'v0.2.2',
@@ -182,19 +212,23 @@ describe('fetchTags', () => {
       'v0.2.0',
       'v0.1.0'
     ])
-  })
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('supports --latest-version without v prefix', async () => {
-    mock('cmd', () => Promise.resolve([
-      '0.1.0---2000-02-01',
-      '0.2.0---2000-03-01',
-      '0.2.1---2000-03-02',
-      '0.2.2---2000-03-03',
-      '0.3.0---2000-04-01',
-      '1.0.0---2001-01-01'
-    ].join('\n')))
+test('fetchTags: supports --latest-version without v prefix', async t => {
+  mock('cmd', () => Promise.resolve([
+    '0.1.0---2000-02-01',
+    '0.2.0---2000-03-01',
+    '0.2.1---2000-03-02',
+    '0.2.2---2000-03-03',
+    '0.3.0---2000-04-01',
+    '1.0.0---2001-01-01'
+  ].join('\n')))
+  try {
     const tags = await fetchTags({ ...options, latestVersion: '2.0.0' })
-    expect(tags.map(t => t.title)).to.deep.equal([
+    t.deepEqual(tags.map(t => t.title), [
       '2.0.0',
       '1.0.0',
       '0.3.0',
@@ -203,18 +237,24 @@ describe('fetchTags', () => {
       '0.2.0',
       '0.1.0'
     ])
-  })
+  } finally {
+    unmock('cmd')
+  }
+})
 
-  it('ignores invalid semver tags', async () => {
-    mock('cmd', () => Promise.resolve([
-      'v0.1.0---2000-02-01',
-      'invalid-semver-tag---2000-03-01',
-      'v0.2.0---2000-03-02'
-    ].join('\n')))
+test('fetchTags: ignores invalid semver tags', async t => {
+  mock('cmd', () => Promise.resolve([
+    'v0.1.0---2000-02-01',
+    'invalid-semver-tag---2000-03-01',
+    'v0.2.0---2000-03-02'
+  ].join('\n')))
+  try {
     const tags = await fetchTags(options)
-    expect(tags.map(t => t.version)).to.deep.equal([
+    t.deepEqual(tags.map(t => t.version), [
       'v0.2.0',
       'v0.1.0'
     ])
-  })
+  } finally {
+    unmock('cmd')
+  }
 })

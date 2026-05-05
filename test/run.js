@@ -1,11 +1,9 @@
-const { describe, it, beforeEach, afterEach } = require('mocha')
-const { expect } = require('chai')
+const test = require('tape')
 const { join } = require('path')
 const { readFile } = require('../src/utils')
 const remotes = require('./data/remotes')
 const releases = require('./data/releases')
-const { tags, commitsMap } = require('./data/commits-map')
-const commitsNoRemote = require('./data/commits-no-remote')
+const { tags } = require('./data/commits-map')
 const {
   run,
   __get__,
@@ -15,74 +13,83 @@ const {
 
 const getOptions = __get__('getOptions')
 
-describe('getOptions', () => {
-  it('parses commit limit correctly', async () => {
-    const options = await getOptions(['', '', '--commit-limit', '10'])
-    expect(options.commitLimit).to.equal(10)
-  })
+function setup () {
+  mock('fileExists', () => false)
+  mock('readJson', () => null)
+  mock('fetchRemote', () => remotes.github)
+  mock('fetchTags', () => Promise.resolve(tags))
+  mock('parseReleases', () => Promise.resolve(releases))
+  mock('writeFile', () => {})
+  mock('log', () => {})
+}
 
-  it('parses false commit limit correctly', async () => {
-    const options = await getOptions(['', '', '--commit-limit', 'false'])
-    expect(options.commitLimit).to.equal(false)
-  })
+function teardown () {
+  unmock('fileExists')
+  unmock('readJson')
+  unmock('fetchRemote')
+  unmock('fetchTags')
+  unmock('parseReleases')
+  unmock('writeFile')
+  unmock('log')
+}
 
-  it('parses --issue-url correctly when given --issue-url', async () => {
-    const options = await getOptions(['', '', '--issue-url', 'https://test.issue.local/issues/{id}'])
-    expect(options.issueUrl).to.equal('https://test.issue.local/issues/{id}')
-  })
-
-  it('parses -i correctly when given -i', async () => {
-    const options = await getOptions(['', '', '-i', 'https://test.issue.local/issues/{id}'])
-    expect(options.issueUrl).to.equal('https://test.issue.local/issues/{id}')
-  })
+test('getOptions: parses commit limit correctly', async t => {
+  const options = await getOptions(['', '', '--commit-limit', '10'])
+  t.equal(options.commitLimit, 10)
 })
 
-describe('run', () => {
-  beforeEach(() => {
-    mock('fileExists', () => false)
-    mock('readJson', () => null)
-    mock('fetchRemote', () => remotes.github)
-    mock('fetchTags', () => Promise.resolve(tags))
-    mock('parseReleases', () => Promise.resolve(releases))
-    mock('writeFile', () => {})
-    mock('log', () => {})
-  })
+test('getOptions: parses false commit limit correctly', async t => {
+  const options = await getOptions(['', '', '--commit-limit', 'false'])
+  t.equal(options.commitLimit, false)
+})
 
-  afterEach(() => {
-    unmock('fileExists')
-    unmock('readJson')
-    unmock('fetchRemote')
-    unmock('fetchTags')
-    unmock('parseReleases')
-    unmock('writeFile')
-    unmock('log')
-  })
+test('getOptions: parses --issue-url correctly when given --issue-url', async t => {
+  const options = await getOptions(['', '', '--issue-url', 'https://test.issue.local/issues/{id}'])
+  t.equal(options.issueUrl, 'https://test.issue.local/issues/{id}')
+})
 
-  it('generates a changelog', async () => {
+test('getOptions: parses -i correctly when given -i', async t => {
+  const options = await getOptions(['', '', '-i', 'https://test.issue.local/issues/{id}'])
+  t.equal(options.issueUrl, 'https://test.issue.local/issues/{id}')
+})
+
+test('run: generates a changelog', async t => {
+  setup()
+  try {
     const expected = await readFile(join(__dirname, 'data', 'template-compact.md'))
 
     mock('writeFile', (output, log) => {
-      expect(output).to.equal('CHANGELOG.md')
-      expect(log).to.equal(expected)
+      t.equal(output, 'CHANGELOG.md')
+      t.equal(log, expected)
     })
 
-    return run(['', ''])
-  })
+    await run(['', ''])
+  } finally {
+    teardown()
+  }
+})
 
-  it.skip('generates a changelog with no remote', async () => {
+test.skip('run: generates a changelog with no remote', async t => {
+  setup()
+  try {
     const expected = await readFile(join(__dirname, 'data', 'template-compact-no-remote.md'))
 
     mock('fetchRemote', () => remotes.null)
-    mock('fetchCommits', () => commitsNoRemote)
+    mock('fetchCommits', () => require('./data/commits-no-remote'))
     mock('writeFile', (output, log) => {
-      expect(output).to.equal('CHANGELOG.md')
-      expect(log).to.equal(expected)
+      t.equal(output, 'CHANGELOG.md')
+      t.equal(log, expected)
     })
 
-    return run(['', ''])
-  })
+    await run(['', ''])
+  } finally {
+    teardown()
+  }
+})
 
-  it('uses options from package.json', async () => {
+test('run: uses options from package.json', async t => {
+  setup()
+  try {
     const expected = await readFile(join(__dirname, 'data', 'template-keepachangelog.md'))
 
     mock('fileExists', () => true)
@@ -92,26 +99,36 @@ describe('run', () => {
       }
     }))
     mock('writeFile', (output, log) => {
-      expect(output).to.equal('CHANGELOG.md')
-      expect(log).to.equal(expected)
+      t.equal(output, 'CHANGELOG.md')
+      t.equal(log, expected)
     })
 
-    return run(['', ''])
-  })
+    await run(['', ''])
+  } finally {
+    teardown()
+  }
+})
 
-  it.skip('uses version from package.json', async () => {
+test.skip('run: uses version from package.json', async t => {
+  setup()
+  try {
     mock('fileExists', () => true)
     mock('readJson', () => ({
       version: '2.0.0'
     }))
     mock('writeFile', (output, log) => {
-      expect(log).to.include('v2.0.0')
+      t.ok(log.includes('v2.0.0'))
     })
 
-    return run(['', '', '--package'])
-  })
+    await run(['', '', '--package'])
+  } finally {
+    teardown()
+  }
+})
 
-  it.skip('uses version from custom package file', async () => {
+test.skip('run: uses version from custom package file', async t => {
+  setup()
+  try {
     mock('fileExists', () => true)
     mock('readJson', file => {
       if (file === 'test.json') {
@@ -120,27 +137,37 @@ describe('run', () => {
       return {}
     })
     mock('writeFile', (output, log) => {
-      expect(log).to.include('v2.0.0')
+      t.ok(log.includes('v2.0.0'))
     })
 
-    return run(['', '', '--package', 'test.json'])
-  })
+    await run(['', '', '--package', 'test.json'])
+  } finally {
+    teardown()
+  }
+})
 
-  it.skip('uses version from package.json with no prefix', async () => {
+test.skip('run: uses version from package.json with no prefix', async t => {
+  setup()
+  try {
     mock('fileExists', () => true)
     mock('readJson', () => ({
       version: '2.0.0'
     }))
     mock('fetchTags', () => Promise.resolve(tags.map(tag => tag.replace('v', ''))))
     mock('writeFile', (output, log) => {
-      expect(log).to.include('2.0.0')
-      expect(log).to.not.include('v2.0.0')
+      t.ok(log.includes('2.0.0'))
+      t.ok(!log.includes('v2.0.0'))
     })
 
-    return run(['', '', '--package'])
-  })
+    await run(['', '', '--package'])
+  } finally {
+    teardown()
+  }
+})
 
-  it('command line options override options from package.json', async () => {
+test('run: command line options override options from package.json', async t => {
+  setup()
+  try {
     mock('fileExists', path => path === '.auto-changelog')
     mock('readJson', () => ({
       'auto-changelog': {
@@ -148,46 +175,67 @@ describe('run', () => {
       }
     }))
     mock('writeFile', (output, log) => {
-      expect(output).to.equal('should-be-this.md')
+      t.equal(output, 'should-be-this.md')
     })
 
-    return run(['', '', '--output', 'should-be-this.md'])
-  })
+    await run(['', '', '--output', 'should-be-this.md'])
+  } finally {
+    teardown()
+  }
+})
 
-  it('uses options from .auto-changelog', async () => {
+test('run: uses options from .auto-changelog', async t => {
+  setup()
+  try {
     const expected = await readFile(join(__dirname, 'data', 'template-keepachangelog.md'))
     mock('fileExists', path => path === '.auto-changelog')
     mock('readJson', path => {
       return path === '.auto-changelog' ? { template: 'keepachangelog' } : null
     })
     mock('writeFile', (output, log) => {
-      expect(log).to.equal(expected)
+      t.equal(log, expected)
     })
 
-    return run(['', ''])
-  })
+    await run(['', ''])
+  } finally {
+    teardown()
+  }
+})
 
-  it('command line options override options from .auto-changelog', async () => {
+test('run: command line options override options from .auto-changelog', async t => {
+  setup()
+  try {
     mock('fileExists', path => path === '.auto-changelog')
     mock('readJson', (path) => {
       return path === '.auto-changelog' ? { output: 'should-not-be-this.md' } : null
     })
     mock('writeFile', (output, log) => {
-      expect(output).to.equal('should-be-this.md')
+      t.equal(output, 'should-be-this.md')
     })
 
-    return run(['', '', '--output', 'should-be-this.md'])
-  })
+    await run(['', '', '--output', 'should-be-this.md'])
+  } finally {
+    teardown()
+  }
+})
 
-  it.skip('supports unreleased option', () => {
+test.skip('run: supports unreleased option', async t => {
+  setup()
+  try {
     mock('writeFile', (output, log) => {
-      expect(log).to.include('Unreleased')
-      expect(log).to.include('https://github.com/user/repo/compare/v1.0.0...HEAD')
+      t.ok(log.includes('Unreleased'))
+      t.ok(log.includes('https://github.com/user/repo/compare/v1.0.0...HEAD'))
     })
-    return run(['', '', '--unreleased'])
-  })
+    await run(['', '', '--unreleased'])
+  } finally {
+    teardown()
+  }
+})
 
-  it.skip('supports breakingPattern option', () => {
+test.skip('run: supports breakingPattern option', async t => {
+  setup()
+  try {
+    const { commitsMap } = require('./data/commits-map')
     const addBreakingFlag = commit => {
       if (/Some breaking change/.test(commit.message)) {
         return { ...commit, breaking: true }
@@ -196,43 +244,68 @@ describe('run', () => {
     }
     mock('fetchCommits', diff => Promise.resolve(commitsMap[diff].map(addBreakingFlag)))
     mock('writeFile', (output, log) => {
-      expect(log).to.include('**Breaking change:** Some breaking change')
+      t.ok(log.includes('**Breaking change:** Some breaking change'))
     })
     // No need to actually pass in the option here as we amend the commits
-    return run(['', '', '--commit-limit', '0'])
-  })
+    await run(['', '', '--commit-limit', '0'])
+  } finally {
+    teardown()
+  }
+})
 
-  it.skip('supports releaseSummary option', () => {
+test.skip('run: supports releaseSummary option', async t => {
+  setup()
+  try {
     mock('writeFile', (output, log) => {
-      expect(log).to.include('This is my major release description.\n\n- And a bullet point')
+      t.ok(log.includes('This is my major release description.\n\n- And a bullet point'))
     })
-    return run(['', '', '--release-summary'])
-  })
+    await run(['', '', '--release-summary'])
+  } finally {
+    teardown()
+  }
+})
 
-  it('does not error when using latest version option', () => {
-    return run(['', '', '--latest-version', 'v3.0.0'])
-  })
+test('run: does not error when using latest version option', async t => {
+  setup()
+  try {
+    await run(['', '', '--latest-version', 'v3.0.0'])
+    t.pass('did not error')
+  } finally {
+    teardown()
+  }
+})
 
-  // For some reason is preventing the fetchTags test from running…?`
-  it.skip('does not error when using stdout option', () => {
-    return run(['', '', '--stdout'])
-  })
+// For some reason is preventing the fetchTags test from running…?`
+test.skip('run: does not error when using stdout option', async t => {
+  setup()
+  try {
+    await run(['', '', '--stdout'])
+    t.pass('did not error')
+  } finally {
+    teardown()
+  }
+})
 
-  it('throws an error when no package found', done => {
-    run(['', '', '--package'])
-      .then(() => done('Should throw an error'))
-      .catch(() => done())
-  })
+test('run: throws an error when no package found', t => {
+  setup()
+  return run(['', '', '--package'])
+    .then(() => t.fail('Should throw an error'))
+    .catch(() => t.pass('threw'))
+    .finally(teardown)
+})
 
-  it('throws an error when no custom package found', done => {
-    run(['', '', '--package', 'does-not-exist.json'])
-      .then(() => done('Should throw an error'))
-      .catch(() => done())
-  })
+test('run: throws an error when no custom package found', t => {
+  setup()
+  return run(['', '', '--package', 'does-not-exist.json'])
+    .then(() => t.fail('Should throw an error'))
+    .catch(() => t.pass('threw'))
+    .finally(teardown)
+})
 
-  it('throws an error when no template found', done => {
-    run(['', '', '--template', 'not-found'])
-      .then(() => done('Should throw an error'))
-      .catch(() => done())
-  })
+test('run: throws an error when no template found', t => {
+  setup()
+  return run(['', '', '--template', 'not-found'])
+    .then(() => t.fail('Should throw an error'))
+    .catch(() => t.pass('threw'))
+    .finally(teardown)
 })

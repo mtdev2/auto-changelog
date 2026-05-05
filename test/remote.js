@@ -1,5 +1,4 @@
-const { describe, it } = require('mocha')
-const { expect } = require('chai')
+const test = require('tape')
 const {
   fetchRemote,
   __Rewire__: mock,
@@ -103,43 +102,41 @@ const TEST_DATA = [
   }
 ]
 
-describe('fetchRemote', () => {
-  for (const { remotes, expected } of TEST_DATA) {
-    for (const remote of remotes) {
-      it(`parses ${remote}`, async () => {
-        mock('cmd', () => remote)
-        const result = await fetchRemote({})
-        expect(result.getCommitLink('123')).to.equal(expected.commit)
-        expect(result.getIssueLink('123')).to.equal(expected.issue)
-        expect(result.getMergeLink('123')).to.equal(expected.merge)
-        expect(result.getCompareLink('v1.2.3', 'v2.0.0')).to.equal(expected.compare)
-        unmock('cmd')
-      })
-    }
-  }
-
-  it('supports overrides', async () => {
-    mock('cmd', () => '')
-    const result = await fetchRemote({
-      commitUrl: 'https://example.com/commit/{id}',
-      issueUrl: 'https://example.com/issue/{id}',
-      mergeUrl: 'https://example.com/merge/{id}',
-      compareUrl: 'https://example.com/compare/{from}-{to}'
+for (const { remotes, expected } of TEST_DATA) {
+  for (const remote of remotes) {
+    test(`fetchRemote: parses ${remote}`, async t => {
+      mock('cmd', () => remote)
+      const result = await fetchRemote({})
+      t.equal(result.getCommitLink('123'), expected.commit)
+      t.equal(result.getIssueLink('123'), expected.issue)
+      t.equal(result.getMergeLink('123'), expected.merge)
+      t.equal(result.getCompareLink('v1.2.3', 'v2.0.0'), expected.compare)
+      unmock('cmd')
     })
-    expect(result.getCommitLink('123')).to.equal('https://example.com/commit/123')
-    expect(result.getIssueLink('123')).to.equal('https://example.com/issue/123')
-    expect(result.getMergeLink('123')).to.equal('https://example.com/merge/123')
-    expect(result.getCompareLink('v1.2.3', 'v2.0.0')).to.equal('https://example.com/compare/v1.2.3-v2.0.0')
-    unmock('cmd')
-  })
+  }
+}
 
-  it('returns null functions', async () => {
-    mock('cmd', () => '')
-    const result = await fetchRemote({})
-    expect(result.getCommitLink('123')).to.equal(null)
-    expect(result.getIssueLink('123')).to.equal(null)
-    expect(result.getMergeLink('123')).to.equal(null)
-    expect(result.getCompareLink('v1.2.3', 'v2.0.0')).to.equal(null)
-    unmock('cmd')
+test('fetchRemote: supports overrides', async t => {
+  mock('cmd', () => '')
+  const result = await fetchRemote({
+    commitUrl: 'https://example.com/commit/{id}',
+    issueUrl: 'https://example.com/issue/{id}',
+    mergeUrl: 'https://example.com/merge/{id}',
+    compareUrl: 'https://example.com/compare/{from}-{to}'
   })
+  t.equal(result.getCommitLink('123'), 'https://example.com/commit/123')
+  t.equal(result.getIssueLink('123'), 'https://example.com/issue/123')
+  t.equal(result.getMergeLink('123'), 'https://example.com/merge/123')
+  t.equal(result.getCompareLink('v1.2.3', 'v2.0.0'), 'https://example.com/compare/v1.2.3-v2.0.0')
+  unmock('cmd')
+})
+
+test('fetchRemote: returns null functions', async t => {
+  mock('cmd', () => '')
+  const result = await fetchRemote({})
+  t.equal(result.getCommitLink('123'), null)
+  t.equal(result.getIssueLink('123'), null)
+  t.equal(result.getMergeLink('123'), null)
+  t.equal(result.getCompareLink('v1.2.3', 'v2.0.0'), null)
+  unmock('cmd')
 })

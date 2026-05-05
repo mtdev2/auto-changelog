@@ -1,5 +1,4 @@
-const { describe, it } = require('mocha')
-const { expect } = require('chai')
+const test = require('tape')
 const {
   updateLog,
   cmd,
@@ -14,92 +13,80 @@ const {
   __ResetDependency__: unmock
 } = require('../src/utils')
 
-describe('updateLog', () => {
-  it('doesn\'t error', async () => {
-    updateLog('Test', false)
-    updateLog('Test')
-  })
+test('updateLog: doesn\'t error', t => {
+  updateLog('Test', false)
+  updateLog('Test')
+  t.pass('did not error')
+  t.end()
 })
 
-describe('cmd', () => {
-  it('runs a command', async () => {
-    const result = await cmd('node --version')
-    expect(result).to.be.a('string')
-  })
-
-  it('runs onProgress', async () => {
-    const result = await cmd('node --version', bytes => expect(bytes).to.be.a('number'))
-    expect(result).to.be.a('string')
-  })
+test('cmd: runs a command', async t => {
+  const result = await cmd('node --version')
+  t.equal(typeof result, 'string')
 })
 
-describe('niceDate', () => {
-  it('formats string into nice date', () => {
-    expect(niceDate('2015-10-03')).to.match(/^\d October 2015$/)
-    expect(niceDate('2017-11-07T19:19:02.635Z')).to.match(/^\d November 2017$/)
-  })
-
-  it('formats date into nice date', () => {
-    expect(niceDate(new Date(2016, 8, 2))).to.match(/^\d September 2016$/)
-    expect(niceDate(new Date('2015-10-03'))).to.match(/^\d October 2015$/)
-  })
+test('cmd: runs onProgress', async t => {
+  const result = await cmd('node --version', bytes => t.equal(typeof bytes, 'number'))
+  t.equal(typeof result, 'string')
 })
 
-describe('isLink', () => {
-  it('returns true for links', () => {
-    expect(isLink('http://test.com')).to.equal(true)
-  })
-
-  it('returns false for non-links', () => {
-    expect(isLink('not a link')).to.equal(false)
-  })
+test('niceDate: formats string into nice date', t => {
+  t.match(niceDate('2015-10-03'), /^\d October 2015$/)
+  t.match(niceDate('2017-11-07T19:19:02.635Z'), /^\d November 2017$/)
+  t.end()
 })
 
-describe('getGitVersion', () => {
-  it('returns git version', async () => {
-    mock('cmd', () => 'git version 2.15.2 (Apple Git-101.1)')
-    expect(await getGitVersion()).to.equal('2.15.2')
-    unmock('cmd')
-  })
-
-  it('returns null', async () => {
-    mock('cmd', () => 'some sort of random output')
-    expect(await getGitVersion()).to.equal(null)
-    unmock('cmd')
-  })
+test('niceDate: formats date into nice date', t => {
+  t.match(niceDate(new Date(2016, 8, 2)), /^\d September 2016$/)
+  t.match(niceDate(new Date('2015-10-03')), /^\d October 2015$/)
+  t.end()
 })
 
-describe('readFile', () => {
-  it('reads file', async () => {
-    mock('fs', { readFile: (path, type, cb) => cb(null, 'abc') })
-    expect(await readFile()).to.equal('abc')
-    unmock('fs')
-  })
+test('isLink: returns true for links', t => {
+  t.equal(isLink('http://test.com'), true)
+  t.end()
 })
 
-describe('writeFile', () => {
-  it('reads file', async () => {
-    mock('fs', { writeFile: (path, data, cb) => cb(null, 'abc') })
-    expect(await writeFile()).to.equal('abc')
-    unmock('fs')
-  })
+test('isLink: returns false for non-links', t => {
+  t.equal(isLink('not a link'), false)
+  t.end()
 })
 
-describe('fileExists', () => {
-  it('reads file', async () => {
-    mock('fs', { access: (path, cb) => cb(null) })
-    expect(await fileExists()).to.equal(true)
-    unmock('fs')
-  })
+test('getGitVersion: returns git version', async t => {
+  mock('cmd', () => 'git version 2.15.2 (Apple Git-101.1)')
+  t.equal(await getGitVersion(), '2.15.2')
+  unmock('cmd')
 })
 
-describe('readJson', () => {
-  it('reads file', async () => {
-    mock('fs', {
-      readFile: (path, type, cb) => cb(null, '{"abc":123}'),
-      access: (path, cb) => cb(null)
-    })
-    expect(await readJson()).to.deep.equal({ abc: 123 })
-    unmock('fs')
+test('getGitVersion: returns null', async t => {
+  mock('cmd', () => 'some sort of random output')
+  t.equal(await getGitVersion(), null)
+  unmock('cmd')
+})
+
+test('readFile: reads file', async t => {
+  mock('fs', { readFile: (path, type, cb) => cb(null, 'abc') })
+  t.equal(await readFile(), 'abc')
+  unmock('fs')
+})
+
+test('writeFile: reads file', async t => {
+  mock('fs', { writeFile: (path, data, cb) => cb(null, 'abc') })
+  t.equal(await writeFile(), 'abc')
+  unmock('fs')
+})
+
+test('fileExists: reads file', async t => {
+  mock('fs', { access: (path, cb) => cb(null) })
+  t.equal(await fileExists(), true)
+  unmock('fs')
+})
+
+test('readJson: reads file', async t => {
+  mock('fs', {
+    readFile: (path, type, cb) => cb(null, '{"abc":123}'),
+    access: (path, cb) => cb(null)
   })
+  t.deepEqual(await readJson(), { abc: 123 })
+  unmock('fs')
 })
