@@ -7,7 +7,7 @@
     "auto-changelog": "./src/index.js"
   },
   "engines": {
-    "node": ">=8.3"
+    "node": ">= 10"
   },
   "scripts": {
     "lint": "standard --verbose | snazzy",
