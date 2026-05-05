@@ -281,7 +281,7 @@ Use `{{#commit-list}}` to render a list of commits depending on certain patterns
 {{/each}}
 ```
 
-| Option    | Description |
+| Option | Description |
 | --------- | ----------- |
 | `heading` | A heading for the list, only renders if at least one commit matches |
 | `message` | A regex pattern to match against the entire commit message |
