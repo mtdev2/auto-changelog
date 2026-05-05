@@ -1,7 +1,0 @@
-/.github
-/coverage
-/scripts
-/test
-.markdownlintrc
-.travis.yml
-codecov.yml
