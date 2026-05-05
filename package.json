@@ -54,8 +54,8 @@
     "semver": "^7.7.4"
   },
   "devDependencies": {
-    "@babel/core": "^7.17.0",
-    "@babel/register": "^7.17.0",
+    "@babel/core": "^7.29.0",
+    "@babel/register": "^7.29.3",
     "babel-plugin-istanbul": "^6.1.1",
     "babel-plugin-rewire": "^1.2.0",
     "codecov": "^3.8.3",
