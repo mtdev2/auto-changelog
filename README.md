@@ -41,6 +41,7 @@ Options:
       --ignore-commit-pattern [regex] # pattern to ignore when parsing commits
       --tag-pattern [regex]           # override regex pattern for version tags
       --tag-prefix [prefix]           # prefix used in version tags, default: v
+      --autodetect-monorepo-disabled  # disable monorepo autodetection, default: true (will default to false in the next major)
       --starting-version [tag]        # specify earliest version to include in changelog
       --starting-date [yyyy-mm-dd]    # specify earliest date to include in changelog
       --ending-version [tag]          # specify latest version to include in changelog
@@ -169,6 +170,25 @@ Use `--tag-prefix [prefix]` if you prefix your version tags with a certain strin
 # When all versions are tagged like my-package/1.2.3
 auto-changelog --tag-prefix my-package/
 ```
+
+#### Monorepos
+
+In a monorepo, each package's version tags are typically prefixed with the package name, like `my-package@1.2.3`. When monorepo autodetection is enabled, `auto-changelog` detects a monorepo package — by a `repository.directory` field in `package.json`, or an ancestor `package.json` declaring npm `workspaces` — and, for a detected package:
+
+- derives the [tag prefix](#tag-prefixes) from the `name` in `package.json` (so you don't have to set `--tag-prefix` for every package), unless one is already configured, and
+- strips that prefix from the release titles in the changelog (so headings read `## [1.2.3]` rather than `## [my-package@1.2.3]`), while still using the full tags for the compare links.
+
+Autodetection is controlled by `--autodetect-monorepo-disabled`, which defaults to `true`. To opt in today, set it to `false`:
+
+```json
+{
+  "auto-changelog": {
+    "autodetectMonorepoDisabled": false
+  }
+}
+```
+
+This option **will default to `false` in the next major version**, enabling monorepo autodetection out of the box.
 
 #### Tag patterns
 

@@ -13,11 +13,15 @@ const fetchTags = async (options, remote) => {
     .filter(isValidTag(options))
     .sort(sortTags(options))
 
-  const { latestVersion, unreleased, unreleasedOnly, getCompareLink } = options
+  const { latestVersion, unreleased, unreleasedOnly, getCompareLink, tagPrefix, stripTagPrefix } = options
   if (latestVersion || unreleased || unreleasedOnly) {
     const previous = tags[0]
     const v = !MATCH_V.test(latestVersion) && previous && MATCH_V.test(previous.version) ? 'v' : ''
-    const compareTo = latestVersion ? `${v}${latestVersion}` : 'HEAD'
+    // The title shows the bare version, but the compare link must target the real
+    // tag. In a monorepo that is prefixed with the package name, and the `v`
+    // convention (if any) still applies after that prefix (e.g. `my-package@v2.0.0`).
+    const prefix = stripTagPrefix && tagPrefix ? `${tagPrefix}${v}` : v
+    const compareTo = latestVersion ? `${prefix}${latestVersion}` : 'HEAD'
     tags.unshift({
       tag: null,
       title: latestVersion ? `${v}${latestVersion}` : 'Unreleased',
@@ -62,12 +66,12 @@ const getEndIndex = (tags, { unreleasedOnly, startingVersion, startingDate, tagP
   return tags.length
 }
 
-const parseTag = ({ tagPrefix }) => string => {
+const parseTag = ({ tagPrefix, stripTagPrefix }) => string => {
   const [tag, date] = string.split(DIVIDER)
   return {
     tag,
     date,
-    title: tag,
+    title: stripTagPrefix ? tag.replace(tagPrefix, '') : tag,
     version: inferSemver(tag.replace(tagPrefix, ''))
   }
 }

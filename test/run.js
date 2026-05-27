@@ -53,6 +53,74 @@ test('getOptions: parses -i correctly when given -i', async t => {
   t.equal(options.issueUrl, 'https://test.issue.local/issues/{id}')
 })
 
+test('getOptions: autodetects a monorepo via repository.directory and derives the tag prefix', async t => {
+  mock('readJson', file => (file === 'package.json'
+    ? { name: 'my-package', repository: { directory: 'packages/my-package' }, 'auto-changelog': { autodetectMonorepoDisabled: false } }
+    : null))
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.tagPrefix, 'my-package@')
+    t.equal(options.stripTagPrefix, true)
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: autodetects a monorepo via an ancestor workspaces field', async t => {
+  mock('readJson', file => {
+    if (file === 'package.json') return { name: 'my-package', 'auto-changelog': { autodetectMonorepoDisabled: false } }
+    if (file.endsWith('package.json')) return { workspaces: ['packages/*'] }
+    return null
+  })
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.tagPrefix, 'my-package@')
+    t.equal(options.stripTagPrefix, true)
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: does not override an explicitly configured tag prefix', async t => {
+  mock('readJson', file => (file === 'package.json'
+    ? { name: 'my-package', repository: { directory: 'packages/my-package' }, 'auto-changelog': { autodetectMonorepoDisabled: false, tagPrefix: 'custom/' } }
+    : null))
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.tagPrefix, 'custom/')
+    t.equal(options.stripTagPrefix, true)
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: does not autodetect when the package is not in a monorepo', async t => {
+  mock('readJson', file => (file === 'package.json'
+    ? { name: 'my-package', 'auto-changelog': { autodetectMonorepoDisabled: false } }
+    : null))
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.tagPrefix, '')
+    t.notOk(options.stripTagPrefix)
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: does not autodetect a monorepo by default', async t => {
+  mock('readJson', file => (file === 'package.json'
+    ? { name: 'my-package', repository: { directory: 'packages/my-package' } }
+    : null))
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.autodetectMonorepoDisabled, true)
+    t.equal(options.tagPrefix, '')
+    t.notOk(options.stripTagPrefix)
+  } finally {
+    unmock('readJson')
+  }
+})
+
 test('run: generates a changelog', async t => {
   setup()
   try {

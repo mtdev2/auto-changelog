@@ -258,3 +258,52 @@ test('fetchTags: ignores invalid semver tags', async t => {
     unmock('cmd')
   }
 })
+
+test('fetchTags: strips the tag prefix from titles when stripTagPrefix is set', async t => {
+  mock('cmd', () => Promise.resolve([
+    'my-package@0.1.0---2000-02-01',
+    'my-package@1.0.0---2001-01-01'
+  ].join('\n')))
+  try {
+    const tags = await fetchTags({ ...options, tagPrefix: 'my-package@', stripTagPrefix: true })
+    t.deepEqual(tags.map(t => t.title), ['1.0.0', '0.1.0'], 'titles drop the prefix')
+    t.deepEqual(tags.map(t => t.version), ['1.0.0', '0.1.0'])
+    t.deepEqual(tags.map(t => t.tag), ['my-package@1.0.0', 'my-package@0.1.0'], 'tags keep the prefix')
+    t.equal(tags[0].href, 'https://github.com/user/repo/compare/my-package@0.1.0...my-package@1.0.0', 'compare link uses full tags')
+  } finally {
+    unmock('cmd')
+  }
+})
+
+test('fetchTags: keeps the tag prefix in titles by default', async t => {
+  mock('cmd', () => Promise.resolve('my-package@1.0.0---2001-01-01'))
+  try {
+    const tags = await fetchTags({ ...options, tagPrefix: 'my-package@' })
+    t.equal(tags[0].title, 'my-package@1.0.0')
+    t.equal(tags[0].version, '1.0.0')
+  } finally {
+    unmock('cmd')
+  }
+})
+
+test('fetchTags: targets the prefixed tag in the latest-version compare link when stripping', async t => {
+  mock('cmd', () => Promise.resolve('my-package@1.0.0---2001-01-01'))
+  try {
+    const tags = await fetchTags({ ...options, tagPrefix: 'my-package@', stripTagPrefix: true, latestVersion: '2.0.0' })
+    t.equal(tags[0].title, '2.0.0', 'latest title is the bare version')
+    t.equal(tags[0].href, 'https://github.com/user/repo/compare/my-package@1.0.0...my-package@2.0.0', 'links to the prefixed tag')
+  } finally {
+    unmock('cmd')
+  }
+})
+
+test('fetchTags: keeps the v convention after the package prefix in the latest-version compare link', async t => {
+  mock('cmd', () => Promise.resolve('my-package@v1.0.0---2001-01-01'))
+  try {
+    const tags = await fetchTags({ ...options, tagPrefix: 'my-package@', stripTagPrefix: true, latestVersion: '2.0.0' })
+    t.equal(tags[0].title, 'v2.0.0', 'latest title keeps the v convention')
+    t.equal(tags[0].href, 'https://github.com/user/repo/compare/my-package@v1.0.0...my-package@v2.0.0', 'links to the real prefixed v-tag')
+  } finally {
+    unmock('cmd')
+  }
+})

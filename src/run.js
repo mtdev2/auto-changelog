@@ -1,3 +1,4 @@
+const { dirname, join } = require('path')
 const { Command } = require('commander')
 const importCwd = require('import-cwd')
 const { version } = require('../package.json')
@@ -14,6 +15,8 @@ const DEFAULT_OPTIONS = {
   commitLimit: 3,
   backfillLimit: 3,
   tagPrefix: '',
+  // TODO[major]: default to false so monorepo autodetection is on by default
+  autodetectMonorepoDisabled: true,
   sortCommits: 'relevance',
   appendGitLog: '',
   appendGitTag: '',
@@ -24,6 +27,26 @@ const DEFAULT_OPTIONS = {
 const PACKAGE_FILE = 'package.json'
 const PACKAGE_OPTIONS_KEY = 'auto-changelog'
 const PREPEND_TOKEN = '<!-- auto-changelog-above -->'
+
+// A package is part of a monorepo if it declares a `repository.directory`
+// (i.e. it lives in a subdirectory of a larger repo), or if an ancestor
+// package.json declares npm `workspaces`.
+const isMonorepoPackage = async pkg => {
+  if (pkg && pkg.repository && pkg.repository.directory) {
+    return true
+  }
+  let dir = process.cwd()
+  let parent = dirname(dir)
+  while (parent !== dir) {
+    const ancestor = await readJson(join(parent, PACKAGE_FILE))
+    if (ancestor && ancestor.workspaces) {
+      return true
+    }
+    dir = parent
+    parent = dirname(dir)
+  }
+  return false
+}
 
 const getOptions = async argv => {
   const commandOptions = new Command()
@@ -47,6 +70,7 @@ const getOptions = async argv => {
     .option('--ignore-commit-pattern <regex>', 'pattern to ignore when parsing commits')
     .option('--tag-pattern <regex>', 'override regex pattern for version tags')
     .option('--tag-prefix <prefix>', 'prefix used in version tags')
+    .option('--autodetect-monorepo-disabled', 'disable detecting a monorepo package and stripping its name-based tag prefix from release titles')
     .option('--starting-version <tag>', 'specify earliest version to include in changelog')
     .option('--starting-date <yyyy-mm-dd>', 'specify earliest date to include in changelog')
     .option('--ending-version <tag>', 'specify latest version to include in changelog')
@@ -73,6 +97,17 @@ const getOptions = async argv => {
     ...dotOptions,
     ...packageOptions,
     ...commandOptions
+  }
+  if (!options.autodetectMonorepoDisabled && await isMonorepoPackage(pkg)) {
+    if (!options.tagPrefix && pkg && pkg.name) {
+      // Monorepo version tags are conventionally prefixed with the package name
+      // (e.g. `my-package@1.2.3`), so derive the prefix from package.json rather
+      // than requiring it to be configured for every package.
+      options.tagPrefix = `${pkg.name}@`
+    }
+    // Strip the (derived or configured) prefix from release titles, while still
+    // using the full tags for compare links.
+    options.stripTagPrefix = true
   }
   const remote = await fetchRemote(options)
   const latestVersion = await getLatestVersion(options)
