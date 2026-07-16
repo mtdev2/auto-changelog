@@ -1,4 +1,4 @@
-const { dirname, join } = require('path')
+const { dirname, isAbsolute, join } = require('path')
 const { Command } = require('commander')
 const importCwd = require('import-cwd')
 const { version } = require('../package.json')
@@ -6,7 +6,7 @@ const { fetchRemote } = require('./remote')
 const { fetchTags } = require('./tags')
 const { parseReleases } = require('./releases')
 const { compileTemplate } = require('./template')
-const { parseLimit, readFile, readJson, writeFile, fileExists, updateLog, formatBytes } = require('./utils')
+const { parseLimit, readFile, readJson, writeFile, fileExists, updateLog, formatBytes, isURL } = require('./utils')
 
 const DEFAULT_OPTIONS = {
   output: 'CHANGELOG.md',
@@ -27,6 +27,49 @@ const DEFAULT_OPTIONS = {
 const PACKAGE_FILE = 'package.json'
 const PACKAGE_OPTIONS_KEY = 'auto-changelog'
 const PREPEND_TOKEN = '<!-- auto-changelog-above -->'
+
+// The in-repo config sources
+// (`.auto-changelog` and the package.json `auto-changelog` key) are untrusted:
+// auto-changelog is occasionally run over repository content the user does not control,
+// such as CI checking out an untrusted pull-request head.
+// If that config sets an option that could load code,
+// inject git arguments, write outside the repo, or make a network request,
+// auto-changelog refuses to run rather than silently ignoring it.
+// Such options must be passed on the command line, or trusted explicitly with the
+// `--unsafe-config` opt-in. See GHSA-xpvr-2hvx-m8q4.
+const CODE_LOADING_OPTIONS = ['handlebarsSetup', 'plugins']
+const SAFE_REMOTE = /^[\w./-]+$/
+const hasTraversal = path => isAbsolute(path) || /(^|[\\/])\.\.([\\/]|$)/.test(path)
+
+// `--output` is the only argument that makes `git log`/`git tag` write to an arbitrary file:
+// spawn runs without a shell, and the append lands after the git subcommand so a `-c <config>` override cannot be injected.
+const hasOutputArg = value => value.split(/\s+/).some(token => /^--output(=|$)/.test(token))
+
+function assertRepoConfigSafe (config) {
+  const unsafe = []
+  for (const key of CODE_LOADING_OPTIONS) {
+    if (key in config) {
+      unsafe.push(`"${key}" loads code`)
+    }
+  }
+  if (typeof config.template === 'string' && isURL(config.template)) {
+    unsafe.push('"template" is a URL (makes a network request)')
+  }
+  if (typeof config.remote === 'string' && !SAFE_REMOTE.test(config.remote)) {
+    unsafe.push('"remote" contains whitespace or unexpected characters (injects git arguments)')
+  }
+  if (typeof config.output === 'string' && hasTraversal(config.output)) {
+    unsafe.push('"output" is absolute or escapes the repository (writes outside it)')
+  }
+  for (const key of ['appendGitLog', 'appendGitTag']) {
+    if (typeof config[key] === 'string' && hasOutputArg(config[key])) {
+      unsafe.push(`"${key}" contains --output (writes to an arbitrary file)`)
+    }
+  }
+  if (unsafe.length > 0) {
+    throw new Error(`Refusing to run: in-repo config (.auto-changelog or the package.json "auto-changelog" key) sets unsafe options: ${unsafe.join('; ')}. Pass them on the command line instead, or re-run with --unsafe-config if you fully trust this repository.`)
+  }
+}
 
 // A package is part of a monorepo if it declares a `repository.directory`
 // (i.e. it lives in a subdirectory of a larger repo), or if an ancestor
@@ -85,6 +128,7 @@ const getOptions = async argv => {
     .option('--prepend', 'prepend changelog to output file')
     .option('--stdout', 'output changelog to stdout')
     .option('--plugins [name...]', 'use plugins to augment commit/merge/release information')
+    .option('--unsafe-config', 'trust in-repo config completely, honoring options that can load code, run git commands, or make network requests; do not use with untrusted repositories')
     .version(version)
     .parse(argv)
     .opts()
@@ -92,10 +136,13 @@ const getOptions = async argv => {
   const pkg = await readJson(PACKAGE_FILE)
   const packageOptions = pkg ? pkg[PACKAGE_OPTIONS_KEY] : null
   const dotOptions = await readJson(commandOptions.config || DEFAULT_OPTIONS.config)
+  const repoOptions = { ...dotOptions, ...packageOptions }
+  if (!commandOptions.unsafeConfig) {
+    assertRepoConfigSafe(repoOptions)
+  }
   const options = {
     ...DEFAULT_OPTIONS,
-    ...dotOptions,
-    ...packageOptions,
+    ...repoOptions,
     ...commandOptions
   }
   if (!options.autodetectMonorepoDisabled && await isMonorepoPackage(pkg)) {

@@ -287,6 +287,108 @@ test('run: command line options override options from .auto-changelog', async t 
   }
 })
 
+const rejectsConfig = (label, config, fromPackage = false) => {
+  test(`getOptions: refuses to run when in-repo config ${label}`, t => {
+    const value = fromPackage ? { 'auto-changelog': config } : config
+    mock('readJson', file => ((fromPackage ? file === 'package.json' : file === '.auto-changelog') ? value : null))
+    return getOptions(['', ''])
+      .then(() => t.fail('should refuse to run'))
+      .catch(() => t.pass('refused'))
+      .finally(() => unmock('readJson'))
+  })
+}
+
+rejectsConfig('sets handlebarsSetup', { handlebarsSetup: 'evil.js' }, true)
+rejectsConfig('sets plugins', { plugins: ['evil'] })
+rejectsConfig('sets a URL template', { template: 'http://attacker.example/evil.hbs' })
+rejectsConfig('sets an argument-injecting remote', { remote: 'origin --output=/tmp/pwned' })
+rejectsConfig('sets a traversing output path', { output: '../../.git/hooks/pre-commit' })
+rejectsConfig('sets an absolute output path', { output: '/tmp/pwned.md' })
+rejectsConfig('sets an appendGitLog with --output', { appendGitLog: '--output=../pwned' })
+rejectsConfig('sets an appendGitTag with --output', { appendGitTag: '--first-parent --output ../pwned' })
+
+test('getOptions: keeps a non-URL template from in-repo config', async t => {
+  mock('readJson', file => (file === '.auto-changelog'
+    ? { template: 'keepachangelog' }
+    : null))
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.template, 'keepachangelog')
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: keeps a normal remote from in-repo config', async t => {
+  mock('readJson', file => (file === '.auto-changelog'
+    ? { remote: 'upstream' }
+    : null))
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.remote, 'upstream')
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: keeps an in-repo output path from in-repo config', async t => {
+  mock('readJson', file => (file === '.auto-changelog'
+    ? { output: 'docs/HISTORY.md' }
+    : null))
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.output, 'docs/HISTORY.md')
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: honors a safe appendGitLog and appendGitTag from in-repo config', async t => {
+  mock('readJson', file => (file === '.auto-changelog'
+    ? { appendGitLog: '--first-parent', appendGitTag: '--sort=-creatordate' }
+    : null))
+  try {
+    const options = await getOptions(['', ''])
+    t.equal(options.appendGitLog, '--first-parent')
+    t.equal(options.appendGitTag, '--sort=-creatordate')
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: honors handlebarsSetup from the command line', async t => {
+  const options = await getOptions(['', '', '--handlebars-setup', 'setup.js'])
+  t.equal(options.handlebarsSetup, 'setup.js')
+})
+
+test('getOptions: honors a URL template from the command line', async t => {
+  const options = await getOptions(['', '', '--template', 'http://example.local/template.hbs'])
+  t.equal(options.template, 'http://example.local/template.hbs')
+})
+
+test('getOptions: --unsafe-config honors unsafe options from in-repo config', async t => {
+  mock('readJson', file => (file === 'package.json'
+    ? { 'auto-changelog': { handlebarsSetup: 'setup.js', appendGitLog: '--output=anywhere' } }
+    : null))
+  try {
+    const options = await getOptions(['', '', '--unsafe-config'])
+    t.equal(options.handlebarsSetup, 'setup.js')
+    t.equal(options.appendGitLog, '--output=anywhere')
+  } finally {
+    unmock('readJson')
+  }
+})
+
+test('getOptions: honors plugins from the command line', async t => {
+  mock('importCwd', name => name)
+  try {
+    const options = await getOptions(['', '', '--plugins', 'foo'])
+    t.deepEqual(options.plugins, ['auto-changelog-foo'])
+  } finally {
+    unmock('importCwd')
+  }
+})
+
 test.skip('run: supports unreleased option', async t => {
   setup()
   try {

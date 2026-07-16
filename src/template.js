@@ -1,7 +1,7 @@
 const { join } = require('path')
 const { get } = require('https')
 const Handlebars = require('handlebars')
-const { readFile, fileExists } = require('./utils')
+const { readFile, fileExists, isURL } = require('./utils')
 
 function fetchText (url) {
   return new Promise((resolve, reject) => {
@@ -22,7 +22,6 @@ function fetchText (url) {
 }
 
 const TEMPLATES_DIR = join(__dirname, '..', 'templates')
-const MATCH_URL = /^https?:\/\/.+/
 const COMPILE_OPTIONS = {
   noEscape: true
 }
@@ -77,7 +76,7 @@ Handlebars.registerHelper('matches', function (val, pattern, options) {
 })
 
 const getTemplate = async template => {
-  if (MATCH_URL.test(template)) {
+  if (isURL(template)) {
     return await fetchText(template)
   }
   if (await fileExists(template)) {

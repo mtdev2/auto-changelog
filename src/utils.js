@@ -52,6 +52,10 @@ const isLink = (string) => {
   return /^http/.test(string)
 }
 
+function isURL (string) {
+  return /^https?:\/\/.+/.test(string)
+}
+
 const parseLimit = (limit) => {
   return limit === 'false' ? false : parseInt(limit, 10)
 }
@@ -106,6 +110,7 @@ module.exports = {
   getGitVersion,
   niceDate,
   isLink,
+  isURL,
   parseLimit,
   encodeHTML,
   replaceText,

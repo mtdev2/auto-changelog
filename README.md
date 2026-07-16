@@ -56,6 +56,7 @@ Options:
       --prepend                       # prepend changelog to output file
       --stdout                        # output changelog to stdout
       --plugins [...name]             # use plugins to augment commit/merge/release information
+      --unsafe-config                 # trust unsafe options from in-repo config (see Security)
   -V, --version                       # output the version number
   -h, --help                          # output usage information
 
@@ -162,6 +163,26 @@ You can also store config options in an `.auto-changelog` file in your project r
 
 Note that any options set in `package.json` will take precedence over any set in `.auto-changelog`.
 
+#### Security and untrusted repositories
+
+`auto-changelog` is sometimes run over repository content that you do not control - for example a CI job that checks out an untrusted pull request, or generating a changelog for a third-party repo on your own machine.
+Because the `.auto-changelog` file and the `package.json` `auto-changelog` key live **inside** that repository, they are treated as untrusted input.
+If in-repo config sets an option that could load code, inject extra git arguments, write outside the repository, or make a network request, `auto-changelog` **refuses to run** and exits with an error rather than silently ignoring the value.
+
+These options can never come from in-repo config, because no value is safe - pass them as command line flags instead:
+
+- `--handlebars-setup` (loads a JS file via `require`)
+- `--plugins` (loads a JS module via `require`)
+- `--template`, when it is a URL (fetched over the network)
+
+These options _are_ honored from in-repo config, but a value that would do one of the unsafe things above is rejected:
+
+- `remote`/`--remote` is used in a git command, so a value containing whitespace (which would inject extra git arguments) is rejected; ordinary remote names like `upstream` are fine.
+- `output`/`--output` is a write path, so an absolute path or one containing `..` (which could write outside the repository) is rejected; ordinary in-repo paths like `HISTORY.md` are fine.
+- `--append-git-log` and `--append-git-tag` are appended to the git commands, so a value containing `--output` (which would write to an arbitrary file) is rejected; ordinary arguments like `--first-parent` are fine.
+
+In every case, "rejected" means `auto-changelog` stops with an error - it never silently drops the value or produces a changelog from sanitized config. If you fully trust the repository you are running against and want to honor its config as-is, pass `--unsafe-config`. **Do not use `--unsafe-config` with repositories you do not control.**
+
 #### Tag prefixes
 
 Use `--tag-prefix [prefix]` if you prefix your version tags with a certain string:
@@ -173,7 +194,7 @@ auto-changelog --tag-prefix my-package/
 
 #### Monorepos
 
-In a monorepo, each package's version tags are typically prefixed with the package name, like `my-package@1.2.3`. When monorepo autodetection is enabled, `auto-changelog` detects a monorepo package — by a `repository.directory` field in `package.json`, or an ancestor `package.json` declaring npm `workspaces` — and, for a detected package:
+In a monorepo, each package's version tags are typically prefixed with the package name, like `my-package@1.2.3`. When monorepo autodetection is enabled, `auto-changelog` detects a monorepo package - by a `repository.directory` field in `package.json`, or an ancestor `package.json` declaring npm `workspaces` - and, for a detected package:
 
 - derives the [tag prefix](#tag-prefixes) from the `name` in `package.json` (so you don't have to set `--tag-prefix` for every package), unless one is already configured, and
 - strips that prefix from the release titles in the changelog (so headings read `## [1.2.3]` rather than `## [my-package@1.2.3]`), while still using the full tags for the compare links.
@@ -275,6 +296,9 @@ You can also point to an external template by passing in a URL:
 auto-changelog --template https://example.com/templates/compact.hbs
 ```
 
+A URL template is fetched over the network, so it can only be passed on the command line;
+setting `template` to a URL in in-repo config makes `auto-changelog` refuse to run (see [Security](#security-and-untrusted-repositories)).
+
 To see exactly what data is passed in to the templates, you can generate a JSON version of the changelog:
 
 ```bash
@@ -327,7 +351,8 @@ Here, any time a pattern like `ABC-123` appears in your log, it will be replaced
 
 #### Handlebars setup file
 
-The `--handlebars-setup` options allows you to point to a file to add custom Handlebars helpers, for use in custom templates using `--template`. Paths are relative to the directory in which you run `auto-changelog`.
+The `--handlebars-setup` options allows you to point to a file to add custom Handlebars helpers, for use in custom templates using `--template`. Paths are relative to the directory in which you run `auto-changelog`. Because this file is loaded via `require`, it can only be passed on the command line;
+setting `handlebarsSetup` in in-repo config makes `auto-changelog` refuse to run (see [Security](#security-and-untrusted-repositories)).
 
 ```js
 auto-changelog --handlebars-setup setup.js --template custom-template.hbs
