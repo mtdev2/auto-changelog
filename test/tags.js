@@ -116,6 +116,15 @@ test('fetchTags: supports --starting-version', async t => {
   }
 })
 
+test('fetchTags: supports --starting-version older than every tag', async t => {
+  setupDefault()
+  try {
+    t.equal((await fetchTags({ ...options, startingVersion: 'v0.0.1' })).length, 6)
+  } finally {
+    unmock('cmd')
+  }
+})
+
 test('fetchTags: supports --ending-version', async t => {
   setupDefault()
   try {
