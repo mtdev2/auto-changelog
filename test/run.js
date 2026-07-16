@@ -389,6 +389,18 @@ test('getOptions: honors plugins from the command line', async t => {
   }
 })
 
+test('getOptions: throws a useful error for --plugins with no names', async t => {
+  mock('importCwd', name => name)
+  try {
+    await getOptions(['', '', '--plugins'])
+    t.fail('should throw')
+  } catch (error) {
+    t.match(error.message, /--plugins requires at least one plugin name/)
+  } finally {
+    unmock('importCwd')
+  }
+})
+
 test.skip('run: supports unreleased option', async t => {
   setup()
   try {

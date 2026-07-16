@@ -162,8 +162,15 @@ const getOptions = async argv => {
     ...options,
     ...remote,
     latestVersion,
-    plugins: options.plugins.map(p => importCwd(`auto-changelog-${p}`))
+    plugins: parsePlugins(options.plugins)
   }
+}
+
+const parsePlugins = plugins => {
+  if (!Array.isArray(plugins)) {
+    throw new Error('--plugins requires at least one plugin name')
+  }
+  return plugins.map(p => importCwd(`auto-changelog-${p}`))
 }
 
 const getLatestVersion = async options => {
