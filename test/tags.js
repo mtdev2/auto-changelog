@@ -125,6 +125,28 @@ test('fetchTags: supports --starting-version older than every tag', async t => {
   }
 })
 
+test('fetchTags: throws a useful error for an invalid --starting-version', async t => {
+  setupDefault()
+  try {
+    await fetchTags({ ...options, startingVersion: 'not-a-version' })
+    t.fail('should throw')
+  } catch (error) {
+    t.match(error.message, /not a valid version/)
+  } finally {
+    unmock('cmd')
+  }
+})
+
+test('fetchTags: supports --starting-version with non-semver tags', async t => {
+  mock('cmd', () => Promise.resolve(['build-9---2001-01-01', 'build-10---2002-01-01'].join('\n')))
+  try {
+    const tags = await fetchTags({ ...options, tagPattern: '^build-', startingVersion: 'v0.0.1' })
+    t.equal(tags.length, 2)
+  } finally {
+    unmock('cmd')
+  }
+})
+
 test('fetchTags: supports --ending-version', async t => {
   setupDefault()
   try {

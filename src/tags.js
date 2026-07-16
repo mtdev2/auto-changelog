@@ -57,8 +57,11 @@ const getEndIndex = (tags, { unreleasedOnly, startingVersion, startingDate, tagP
     if (index !== -1) {
       return index + 1
     }
+    if (!semver.valid(semverStartingVersion)) {
+      throw new Error(`Starting version '${startingVersion}' is not a valid version, and does not match any tag`)
+    }
     // Fall back to nearest version lower than startingVersion
-    const fallbackIndex = tags.findIndex(({ version }) => version && semver.lt(version, semverStartingVersion))
+    const fallbackIndex = tags.findIndex(({ version }) => semver.valid(version) && semver.lt(version, semverStartingVersion))
     // -1 as a slice end would drop the oldest release rather than include every tag
     return fallbackIndex === -1 ? tags.length : fallbackIndex
   }
