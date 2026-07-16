@@ -159,6 +159,27 @@ test('parseReleases: passes fixes to the processFixes plugin hook', async t => {
   }
 })
 
+test('parseReleases: sorts commits with no stats by relevance', async t => {
+  try {
+    const map = {
+      'v1.0.0': generateCommits([
+        { message: 'Empty commit' },
+        { message: 'Big commit', insertions: 400, deletions: 0 },
+        { message: 'Small commit', insertions: 1, deletions: 0 }
+      ])
+    }
+    mock('fetchCommits', diff => Promise.resolve(map[diff]))
+    const options = { commitLimit: 2, backfillLimit: 2, ...remotes.github }
+    const tags = [{ tag: 'v1.0.0', date: '2000-01-01', diff: 'v1.0.0' }]
+    const releases = await parseReleases(tags, options)
+    t.equal(releases[0].commits.length, 2)
+    t.equal(releases[0].commits[0].subject, 'Big commit')
+    t.equal(releases[0].commits[1].subject, 'Small commit')
+  } finally {
+    unmock('fetchCommits')
+  }
+})
+
 test('parseReleases: hides empty releases', async t => {
   try {
     const map = {

@@ -65,6 +65,8 @@ const filterCommits = merges => commit => {
   return true
 }
 
+const getRelevance = ({ insertions = 0, deletions = 0 }) => insertions + deletions
+
 const sortCommits = ({ sortCommits }) => (a, b) => {
   if (!a.breaking && b.breaking) return 1
   if (a.breaking && !b.breaking) return -1
@@ -72,7 +74,7 @@ const sortCommits = ({ sortCommits }) => (a, b) => {
   if (sortCommits === 'date-desc') return new Date(b.date) - new Date(a.date)
   if (sortCommits === 'subject') return a.subject.localeCompare(b.subject)
   if (sortCommits === 'subject-desc') return b.subject.localeCompare(a.subject)
-  return (b.insertions + b.deletions) - (a.insertions + a.deletions)
+  return getRelevance(b) - getRelevance(a)
 }
 
 const getCommitLimit = ({ commitLimit, backfillLimit }, emptyRelease, breakingCount) => {
