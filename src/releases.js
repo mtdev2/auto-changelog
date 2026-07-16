@@ -78,10 +78,10 @@ const sortCommits = ({ sortCommits }) => (a, b) => {
 }
 
 const getCommitLimit = ({ commitLimit, backfillLimit }, emptyRelease, breakingCount) => {
-  if (commitLimit === false) {
+  const limit = emptyRelease ? backfillLimit : commitLimit
+  if (commitLimit === false || limit === false) {
     return undefined // Return all commits
   }
-  const limit = emptyRelease ? backfillLimit : commitLimit
   return Math.max(breakingCount, limit)
 }
 

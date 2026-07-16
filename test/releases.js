@@ -109,6 +109,21 @@ test('parseReleases: applies backfillLimit', async t => {
   }
 })
 
+test('parseReleases: false backfillLimit', async t => {
+  try {
+    const map = {
+      'v1.0.0': generateCommits(['Fourth commit', 'Third commit', 'Second commit', 'First commit'])
+    }
+    mock('fetchCommits', diff => Promise.resolve(map[diff]))
+    const options = { commitLimit: 3, backfillLimit: false }
+    const tags = [{ tag: 'v1.0.0', date: '2000-01-01', diff: 'v1.0.0' }]
+    const releases = await parseReleases(tags, options)
+    t.equal(releases[0].commits.length, 4)
+  } finally {
+    unmock('fetchCommits')
+  }
+})
+
 test('parseReleases: includes breaking commits', async t => {
   try {
     const map = {
