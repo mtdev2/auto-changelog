@@ -128,6 +128,37 @@ test('parseReleases: includes breaking commits', async t => {
   }
 })
 
+test('parseReleases: passes fixes to the processFixes plugin hook', async t => {
+  try {
+    const map = {
+      'v1.0.0': generateCommits([
+        'Merge pull request #2 from branch\n\nSecond commit',
+        'First commit\nFixes #1'
+      ])
+    }
+    mock('fetchCommits', diff => Promise.resolve(map[diff]))
+    const received = {}
+    const plugin = {
+      processMerges: merges => { received.merges = merges },
+      processFixes: fixes => { received.fixes = fixes }
+    }
+    const options = {
+      commitLimit: 3,
+      backfillLimit: 3,
+      plugins: [plugin],
+      ...remotes.github
+    }
+    const tags = [{ tag: 'v1.0.0', date: '2000-01-01', diff: 'v1.0.0' }]
+    await parseReleases(tags, options)
+    t.equal(received.fixes.length, 1)
+    t.equal(received.fixes[0].fixes[0].id, '1')
+    t.equal(received.merges.length, 1)
+    t.equal(received.merges[0].id, '2')
+  } finally {
+    unmock('fetchCommits')
+  }
+})
+
 test('parseReleases: hides empty releases', async t => {
   try {
     const map = {

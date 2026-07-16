@@ -13,7 +13,7 @@ const parseReleases = async (tags, options, onParsed) => {
     for (const plugin of options.plugins || []) {
       if (plugin.processCommits) await plugin.processCommits(commits)
       if (plugin.processMerges) await plugin.processMerges(merges)
-      if (plugin.processFixes) await plugin.processFixes(merges)
+      if (plugin.processFixes) await plugin.processFixes(fixes)
     }
 
     const emptyRelease = merges.length === 0 && fixes.length === 0
